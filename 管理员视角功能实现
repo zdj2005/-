@@ -1,0 +1,178 @@
+二、管理员视角功能演示
+功能1.查询各类图书数量:
+-- 审核员统计每类书数目
+SELECT type_name,COUNT(bid) AS '数目'
+FROM book,book_type_dict
+WHERE book.book_type=book_type_dict.type_code
+GROUP BY book_type;
+ 
+功能2.用户注册:
+(1)用户名于学号查询是否可用：
+：检查用户名是否可用
+CALL proc_check_username('断鸿殇璃');
+
+检查学号是否可用
+CALL proc_check_student_no('23366013');
+   
+（2）注册账号：
+CALL proc_register_user(
+    '断鸿殇璃',           -- 用户名
+    '123456',           -- 密码
+    '23366013',              -- 学号
+    '董鹏超',                  -- 学生姓名
+    '网络空间安全学院',            -- 院系
+    '/path/to/id_card.jpg'   -- 学生证照片路径
+);
+ 
+ 
+(3)--查看新注册的用户（姓名）
+SELECT uid, user_name, role, gmt_create FROM user WHERE user_name IN ('断鸿殇璃');
+ 
+(4)-- 查看新注册的学生信息(学号）
+SELECT sid, student_no, student_name, department, is_approved, is_frozen FROM student 
+WHERE student_no IN ('23366013');
+ 
+
+功能3.审核借阅证与借阅申请
+(1) 审核借阅证申请
+-- 审核借阅证申请
+UPDATE borrow_apply 
+SET status = 1 
+WHERE student_id = 12 AND status = 0;
+ 
+ 
+(2) 审核图书借阅申请
+UPDATE book_borrow 
+SET status = 1 
+WHERE student_id = 1 AND book_id = 4 AND status = 0;
+ 
+ 
+-- 审核员查看待审核的借书申请
+SELECT * FROM vw_pending_borrow;
+ 
+（3）借阅请求拒绝功能：
+-- 拒绝申请（对于借阅记录）
+CALL proc_reject_borrow(11, @AUDITOR_UID, '学生账号已冻结');  
+ 
+-- 拒绝全部申请（对于借阅记录）
+ 
+CALL proc_batch_reject_borrow(@AUDITOR_UID, '系统维护期间暂停借阅');
+ 
+ 
+--查看已拒绝的借书记录
+SELECT * FROM vw_rejected_borrow;
+ 
+--查看审核员拒绝操作统计
+SELECT 
+    u.user_name AS '审核员',
+    COUNT(*) AS '拒绝数量',
+    MAX(bb.verify_time) AS '最后操作时间'
+FROM book_borrow bb
+LEFT JOIN user u ON bb.verify_user_id = u.uid
+WHERE bb.status = 2
+GROUP BY bb.verify_user_id, u.user_name
+ORDER BY COUNT(*) DESC;
+ 
+（4）学生个人借阅历史查询：
+SELECT 
+    bb.bb_id AS '借阅记录id',
+    b.book_name AS '书名',
+    bb.borrow_time AS '借阅时间',
+    bb.return_time AS '归还时间',
+    bb.status AS '借阅状态',
+    CASE bb.status
+        WHEN 0 THEN '待审核'
+        WHEN 1 THEN '借阅中'
+        WHEN 2 THEN '已拒绝'
+        WHEN 3 THEN '已归还'
+    END AS '借阅状态名称'
+FROM book_borrow bb
+JOIN book b ON bb.book_id = b.bid
+WHERE bb.student_id = 1
+ORDER BY bb.borrow_time DESC;
+ 
+（5）单本图书借阅历史查询：
+SELECT 
+    bb.bb_id AS '借阅记录id',
+    s.student_name AS '学生姓名',
+    s.student_no AS '学生学号',
+    bb.borrow_time AS '借阅时间',
+    bb.return_time AS '归还时间',
+    CASE 
+        WHEN bb.status = 3 THEN '已归还'
+        WHEN bb.status = 1 AND bb.due_date < NOW() THEN '已逾期'
+        WHEN bb.status = 1 AND bb.due_date >= NOW() THEN '借阅中'
+        WHEN bb.status = 4 THEN '还书申请中'
+        ELSE '其他状态'
+    END AS '当前状态'
+FROM book_borrow bb
+JOIN student s ON bb.student_id = s.sid
+WHERE bb.book_id = 1
+ORDER BY bb.borrow_time DESC;
+ 
+（6）. 查询即将到期的借阅记录（3天内到期）
+SELECT 
+    bb.bb_id AS '借阅记录id',
+    s.student_name AS '学生姓名',
+    s.student_no AS '学生学号',
+    b.book_name AS '书名',
+    bb.borrow_time AS '借阅时间',
+    bb.due_date AS '应还日期',
+    DATEDIFF(bb.due_date, NOW()) AS '剩余天数'
+FROM book_borrow bb
+JOIN student s ON bb.student_id = s.sid
+JOIN book b ON bb.book_id = b.bid
+WHERE bb.status = 1 
+  AND bb.due_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 3 DAY)
+ORDER BY bb.due_date;
+ 
+功能4.审核评论：
+(1) 审核刚刚提交的评论
+-- 审核刚刚提交的评论
+UPDATE book_comment 
+SET status = 1, -- 审核通过
+    verify_user_id = @AUDITOR_UID, -- auditor1 专属审核人ID，固定写死
+    verify_time = NOW()  -- 自动填充当前审核时间
+WHERE student_id = 1 AND status = 0; -- 精准条件：只过该学生的待审核评论
+ 
+(2) 审核修改后的评论与评分
+-- 审核修改后的评论、评分
+UPDATE book_comment 
+SET status = 1 
+WHERE student_id = 1 AND status = 0;
+ 
+功能5.还书审核
+（1）还书审核：（被拒）
+CALL proc_auditor_process_return(1,4, 3, 0, @result, @message);
+SELECT @result AS '执行结果', @message AS '返回消息';
+   
+需要用户端进行重新申请
+若还书审核（通过）
+CALL proc_auditor_process_return(1,4, 2, 1, @result, @message);
+SELECT @result AS '执行结果', @message AS '返回消息';
+ 
+ 
+（2）查看还书统计数据
+SELECT * FROM vw_return_statistics;
+ 
+（3）逾期影响
+审核员查看逾期图书列表
+SELECT * FROM vw_overdue_books;
+ 
+-- 1. 检查逾期图书数量
+CALL proc_check_overdue_books(@overdue_count);
+SELECT @overdue_count AS '逾期图书数量';
+ 
+-- 2. 批量处理逾期图书
+-- 示例：对逾期超过7天的学生发送提醒
+CALL proc_batch_process_overdue(7, 1, @processed_count);
+SELECT @processed_count AS '处理数量';
+
+-- 示例：对逾期超过15天的学生进行警告
+CALL proc_batch_process_overdue(15, 2, @processed_count);
+SELECT @processed_count AS '处理数量';
+
+-- 示例：对逾期超过30天的学生进行冻结
+CALL proc_batch_process_overdue(30, 3, @processed_count);
+SELECT @processed_count AS '处理数量';
+ 
