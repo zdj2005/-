@@ -16,8 +16,7 @@ INSERT INTO book_type_dict (type_code, type_name) VALUES
 (11, '外语学习'),
 (12, '考研考公');
  
-步骤 2：核心业务数据导入
-导入用户、学生、图书、借阅记录、系统配置等数据：
+步骤 2：用户数据导入
 
 ALTER TABLE `user`
 ADD COLUMN `salt` VARCHAR(32) NOT NULL COMMENT '密码盐值（随机字符串，用于加密和解密验证）' AFTER `password`;
@@ -85,6 +84,7 @@ INSERT INTO `user` (
   NOW()
 );
 
+步骤3：学生数据导入
 INSERT INTO `user` (user_name, password, salt, role, gmt_create, gmt_modified)
 VALUES
 -- student001 → 对应uid=7
@@ -107,10 +107,11 @@ VALUES
 ('student009', SHA2(CONCAT('Student@009', SUBSTRING(UUID(), 1, 32)), 256), SUBSTRING(UUID(), 1, 32), 3, NOW(), NOW()),
 -- student010 → 对应uid=16
 ('student010', SHA2(CONCAT('Student@010', SUBSTRING(UUID(), 1, 32)), 256), SUBSTRING(UUID(), 1, 32), 3, NOW(), NOW());
-用户插入
+
+步骤4：图书数据插入
 INSERT INTO book (book_no, book_name, book_type, author, description, publisher, publish_date, cover_image, status, borrow_count, comment_count, is_recommend, create_user_id, modify_user_id) 
 VALUES
- 
+
 -- ========== 1-计算机/编程 (type_code=1) ==========
 ('A_01_001', 'MySQL数据库从入门到精通', 1, '张三', '零基础学习MySQL数据库，包含索引优化、事务、存储过程等核心内容', '机械工业出版社', '2020-05-10', '', 0, 26, 8, 1, 1, NULL),
 ('A_01_002', 'Java编程思想', 1, '李四', '经典Java开发书籍，深入讲解Java面向对象、集合、并发编程', '人民邮电出版社', '2019-08-15', '', 0, 32, 12, 1, 1, NULL),
@@ -150,6 +151,7 @@ VALUES
 ('C_12_003', '申论的规矩', 12, '粉笔公考', '公务员考试申论备考核心教材', '新华出版社', '2020-09-10', '', 0, 29, 8, 0, 1, NULL),
 ('C_12_004', '考研政治精讲精练', 12, '徐涛', '考研政治核心考点梳理，备考必备', '中国政法大学出版社', '2021-01-10', '', 0, 26, 7, 0, 1, NULL);
 
+步骤5：借阅证申请数据导入
 INSERT INTO student (user_id, student_no, student_name, department, id_card_image, is_approved, is_frozen) 
 VALUES
 -- 关联user表中student001的uid=7
@@ -173,6 +175,7 @@ VALUES
 -- 关联user表中student010的uid=16
 (16, '20230010', '陈十二', '公管学院', '', 1, 0);
 
+步骤6：图书借阅学生导入
 INSERT INTO `student` (
     sid, 
     user_id, 
@@ -193,3 +196,4 @@ INSERT INTO `student` (
 (14, 20, '20230014', '王泽阳', '食品科学与工程学院', 0, 0, NOW()),
 -- 对应user表student015（uid=21）→ 无借阅证
 (15, 21, '20230015', '刘佳宁', '药学院', 0, 0, NOW());
+
