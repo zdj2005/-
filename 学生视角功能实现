@@ -1,0 +1,90 @@
+一、学生视角功能
+功能 1.查询某类别图书
+-- 学生查询某一类型书的信息
+SELECT *
+FROM vw_student_book_query
+WHERE vw_student_book_query.`图书类型`='文学名著'
+ 
+功能 2.查询个人信息
+SELECT * FROM vw_student_personal_info WHERE `学生id` = 1;
+ 
+学生自己可以看见的图书库：
+ 
+
+功能3.借阅证与借阅功能
+(1) 无借阅证学生申请借阅证
+-- 申请借阅证
+INSERT INTO borrow_apply (student_id) VALUES (12);
+ 
+(2) 查阅自己的借阅证申请记录
+SELECT * FROM vw_student_borrow_apply WHERE `学生id` = 1;
+ 
+(3) 查阅自己的借阅记录
+SELECT * FROM vw_student_book_borrow WHERE `学生id` =1;
+ 
+(4) 查询可借阅的书，并选择一本进行借阅申请
+SELECT `图书id`,书名,`图书状态` FROM vw_student_book_query WHERE `图书状态` = 0;
+INSERT INTO book_borrow (student_id, book_id, status) VALUES (1, 1, 0);
+ 
+ 
+(5) 查看自己被拒绝的借书记录 
+
+-- 学生1查看自己被拒绝的借书记录
+SELECT * FROM vw_student_rejected_borrow WHERE `学生ID` = 1;
+ 
+
+功能4.评论功能
+（1）查询自己的评论
+SELECT * FROM vw_student_book_comment WHERE `学生id` =1;
+ 
+（2）发表评论
+由于之前测试代码插入了记录，故bb_id为2
+-- 插入评论
+INSERT INTO book_comment (student_id, book_id, comment, score)
+VALUES
+(1, 1, '这本书的MySQL索引优化讲的很详细，零基础也能看懂，非常推荐！', 5);
+-- bid=2（Java编程思想）
+(1, 2, '《Java编程思想》把面向对象的核心概念讲透了，集合框架的源码分析帮我理清了Java的底层逻辑', 5),
+-- bid=3（Python数据分析）
+(1, 3, '《Python数据分析》里的pandas数据清洗案例太实用，处理Excel数据的效率直接翻倍', 4),
+-- bid=6（红楼梦）
+(1, 6, '《红楼梦》的人物刻画太细腻了，金陵十二钗的命运交织得既凄美又深刻，经典果然值得反复读', 5),
+-- bid=7（百年孤独）
+(1, 7, '《百年孤独》的魔幻现实主义太独特，布恩迪亚家族的轮回故事荒诞又戳中人心，读起来很沉浸', 5),
+-- bid=8（平凡的世界）
+(1, 8, '《平凡的世界》里孙少平的奋斗太打动人，真实还原了那个时代普通人的坚韧与希望', 5),
+-- bid=9（三体全集）
+(1, 9, '《三体全集》的黑暗森林法则和降维打击设定太震撼，刷新了我对科幻宇宙的认知', 5),
+-- bid=10（活着）
+(1, 10, '《活着》的剧情很沉重，但福贵对生命的韧性让人动容，能感受到平凡生命的力量', 4),
+-- bid=11（明朝那些事儿）
+(1, 11, '《明朝那些事儿》用幽默讲明史，张居正、王阳明的形象鲜活，比枯燥史书好懂太多', 5),
+-- bid=12（人类简史）
+(1, 12, '《人类简史》从认知革命到科技革命的视角太宏大，刷新了我对人类发展的理解', 4),
+-- bid=18（高等数学同济第七版）
+(1, 18, '《高等数学同济第七版》的例题和推导很详细，课后习题能巩固知识点，考研复习必备', 4),
+-- bid=23（新概念英语第四册）
+(1, 23, '《新概念英语第四册》的文章句式很经典，背完对写作和阅读的提升很明显', 4);
+插入的评论，此前代码编写已经测试过，故起始id不为1
+ 
+(3)修改评论内容：
+-- 1. 修改【红楼梦 book_id=6】的评论内容，评分还是5分不变
+CALL proc_update_student_comment(1,6,'《红楼梦》作为四大名著巅峰之作，大观园的繁华与落幕，宝黛的痴情与遗憾，字字皆是人生，每次品读都有新的感悟，越读越有味道',0);
+-- 2. 修改【活着 book_id=10】的评论内容，评分还是4分不变
+CALL proc_update_student_comment(1,10,'《活着》这本书没有华丽的辞藻，只有福贵坎坷的一生，失去所有亲人却依然坚韧活着，让我懂得平凡的生命也拥有最强大的力量，后劲十足',0);
+-- 1. 只修改【Python数据分析 book_id=3】评分：4分 → 5分，内容不变
+CALL proc_update_student_comment(1,3,NULL,5);
+-- 2. 只修改【高等数学 book_id=18】评分：4分 → 5分，内容不变
+CALL proc_update_student_comment(1,18,NULL,5);
+-- 1. 同时修改【三体全集 book_id=9】内容+评分(5→5，满分不变)
+CALL proc_update_student_comment(1,9,'《三体全集》的宇宙观格局拉满！黑暗森林法则、降维打击、面壁计划，每一个设定都颠覆认知，刘慈欣的脑洞太惊艳，封神之作！',5);
+-- 2. 同时修改【新概念英语第四册 book_id=23】内容+评分(4→5)
+CALL proc_update_student_comment(1,23,'《新概念英语第四册》的文章都是原汁原味的美文，句式严谨又优美，精读背诵后，我的英文写作和阅读语感提升特别明显，英语学习必备经典教材！',5);
+ 
+功能5.还书功能：
+还书申请：
+CALL proc_student_return_book(1, 4, @result, @message);
+SELECT @result AS '执行结果', @message AS '返回消息';
+ 
+ 
+
